@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Mobility Hub - arrivals scan list</title>
+<style>
+  :root { --navy:#14285a; --blue:#2a5aaa; --green:#2e7d32; --red:#b3261e; --bg:#eef1f6; --panel:#ffffff; --muted:#5f6675; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI", Arial, sans-serif; background:var(--bg); color:#1d1d1f; }
+  header { background:var(--navy); color:#fff; padding:14px 16px 12px; position:sticky; top:0; z-index:2; }
+  header h1 { margin:0; font-size:20px; font-weight:700; }
+  header p { margin:2px 0 0; font-size:13px; opacity:.85; }
+  main { padding:12px 12px 120px; max-width:640px; margin:0 auto; }
+  .added { background:#e7f4e8; border-left:5px solid var(--green); padding:10px 12px; border-radius:6px; margin-bottom:10px; font-size:15px; }
+  .dupe { background:#fff4e0; border-left:5px solid #c77700; }
+  .count { font-size:15px; color:var(--muted); margin:6px 2px 8px; }
+  .count b { color:#1d1d1f; font-size:22px; }
+  ul { list-style:none; margin:0; padding:0; background:var(--panel); border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  li { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid #e4e7ee; }
+  li:last-child { border-bottom:0; }
+  .pkg { font-weight:700; font-size:17px; }
+  .meta { font-size:12px; color:var(--muted); }
+  .grow { flex:1; min-width:0; }
+  .x { border:0; background:none; color:var(--red); font-size:22px; padding:4px 8px; }
+  .empty { padding:24px; text-align:center; color:var(--muted); background:var(--panel); border-radius:8px; }
+  .help { font-size:13px; color:var(--muted); margin:14px 2px; line-height:1.45; }
+  label { font-size:13px; color:var(--muted); display:block; margin:14px 2px 4px; }
+  input[type=email] { width:100%; padding:12px; font-size:16px; border:1px solid #c8cdd8; border-radius:6px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #d8dce5; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .bar button, .clear { border:0; border-radius:6px; padding:13px 6px; font-size:15px; font-weight:600; color:#fff; }
+  .email { background:var(--green); } .share { background:var(--blue); } .copy { background:var(--navy); }
+  .clear { background:#fff; color:var(--red); border:1px solid var(--red); width:100%; margin-top:16px; }
+  .toast { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 14px; border-radius:6px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:.95; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Arrivals scan list</h1>
+  <p>Scan each package label. The list builds up here on this phone.</p>
+</header>
+<main>
+  <div id="msg"></div>
+  <div class="count"><b id="n">0</b> package(s) scanned</div>
+  <ul id="list"></ul>
+  <p class="help">Scan the next label with the camera - it opens this page again and adds to the list. When the kit is all scanned, send the list with the buttons below. Mobility import it with <b>Arrivals &gt; Check QR arrival emails</b>.<br>Nothing is sent anywhere until you press a button: the list is only stored on this phone.</p>
+  <label for="to">Email the list to (remembered on this phone)</label>
+  <input id="to" type="email" placeholder="e.g. mobility.ops@mod.gov.uk" autocomplete="email">
+  <button class="clear" id="clear">Clear the list (after it has been sent)</button>
+</main>
+<div class="bar">
+  <button class="email" id="email">Email</button>
+  <button class="share" id="share">Share</button>
+  <button class="copy" id="copy">Copy</button>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  var KEY = "mobhub.scans.v1", TO = "mobhub.scans.to";
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
+  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
+  function toast(t) { var el = document.getElementById("toast"); el.textContent = t; el.classList.add("show"); setTimeout(function () { el.classList.remove("show"); }, 1800); }
+  function stamp(d) { var p = function (x) { return (x < 10 ? "0" : "") + x; }; return p(d.getDate()) + "/" + p(d.getMonth() + 1) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); }
+  var items = load();
+  // a scan arrives as  ...scan.html#MOBARR%20<OP/EX ID>%20<package>
+  var raw = "";
+  try { raw = decodeURIComponent((location.hash || "").replace(/^#/, "")).trim(); } catch (e) { raw = ""; }
+  var m = raw.match(/^MOBARR\s+(\d+)\s+(\S+)$/);
+  var msg = document.getElementById("msg");
+  if (m) {
+    var code = "MOBARR " + m[1] + " " + m[2];
+    var dup = items.some(function (i) { return i.code === code; });
+    if (!dup) { items.push({ code: code, pkg: m[2], op: m[1], at: stamp(new Date()) }); save(items); }
+    msg.innerHTML = '<div class="added' + (dup ? ' dupe' : '') + '">' + (dup ? 'Already on the list: <b>' : 'Added: <b>') + m[2].replace(/[<>&]/g, "") + "</b></div>";
+    if (history.replaceState) history.replaceState(null, "", location.pathname + location.search); // so a refresh does not add it again
+  }
+  var to = document.getElementById("to");
+  try { to.value = localStorage.getItem(TO) || ""; } catch (e) {}
+  to.addEventListener("change", function () { try { localStorage.setItem(TO, to.value.trim()); } catch (e) {} });
+  function render() {
+    var ul = document.getElementById("list"); ul.innerHTML = "";
+    document.getElementById("n").textContent = items.length;
+    if (!items.length) { ul.outerHTML = '<ul id="list"><li class="empty" style="display:block">No packages scanned yet.</li></ul>'; return; }
+    items.slice().reverse().forEach(function (it) {
+      var li = document.createElement("li");
+      li.innerHTML = '<div class="grow"><div class="pkg"></div><div class="meta"></div></div><button class="x" aria-label="Remove">&times;</button>';
+      li.querySelector(".pkg").textContent = it.pkg;
+      li.querySelector(".meta").textContent = "OP/EX " + it.op + "  -  scanned " + it.at;
+      li.querySelector(".x").onclick = function () { items = items.filter(function (i) { return i.code !== it.code; }); save(items); render(); };
+      ul.appendChild(li);
+    });
+  }
+  function text() { return "Mobility Hub arrivals - " + items.length + " package(s)\n" + items.map(function (i) { return i.code; }).join("\n"); }
+  document.getElementById("email").onclick = function () {
+    if (!items.length) return toast("Nothing scanned yet");
+    var addr = to.value.trim(); try { localStorage.setItem(TO, addr); } catch (e) {}
+    location.href = "mailto:" + encodeURIComponent(addr).replace(/%40/g, "@") + "?subject=" + encodeURIComponent("MOBARR LIST " + items.length + " packages") + "&body=" + encodeURIComponent(text());
+  };
+  document.getElementById("share").onclick = function () {
+    if (!items.length) return toast("Nothing scanned yet");
+    if (navigator.share) navigator.share({ title: "MOBARR LIST", text: text() }).catch(function () {});
+    else document.getElementById("copy").onclick();
+  };
+  document.getElementById("copy").onclick = function () {
+    if (!items.length) return toast("Nothing scanned yet");
+    var t = text();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("List copied - paste it into an email"); }, function () { prompt("Copy this list:", t); });
+    else prompt("Copy this list:", t);
+  };
+  document.getElementById("clear").onclick = function () {
+    if (!items.length) return;
+    if (confirm("Clear all " + items.length + " scanned package(s)? Only do this once the list has been sent.")) { items = []; save(items); render(); msg.innerHTML = ""; }
+  };
+  render();
+})();
+</script>
+</body>
+</html>
