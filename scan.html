@@ -4,115 +4,293 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Mobility Hub - arrivals scan list</title>
+<title>Mobility Hub - scan list</title>
 <style>
-  :root { --navy:#14285a; --blue:#2a5aaa; --green:#2e7d32; --red:#b3261e; --bg:#eef1f6; --panel:#ffffff; --muted:#5f6675; }
+  :root { --navy:#00205b; --blue:#2a5aaa; --green:#2e7d32; --red:#b3261e; --amber:#c77700; --bg:#eef1f6; --panel:#ffffff; --muted:#5f6675; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:"Segoe UI", Arial, sans-serif; background:var(--bg); color:#1d1d1f; }
-  header { background:var(--navy); color:#fff; padding:14px 16px 12px; position:sticky; top:0; z-index:2; }
+  header { background:var(--navy); color:#fff; padding:12px 16px 10px; position:sticky; top:0; z-index:3; }
   header h1 { margin:0; font-size:20px; font-weight:700; }
   header p { margin:2px 0 0; font-size:13px; opacity:.85; }
-  main { padding:12px 12px 120px; max-width:640px; margin:0 auto; }
+  .modes { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px; }
+  .modes button { border:0; border-radius:6px; padding:9px; font-size:14px; font-weight:600; background:rgba(255,255,255,.15); color:#fff; }
+  .modes button.on { background:#fff; color:var(--navy); }
+  main { padding:12px 12px 170px; max-width:640px; margin:0 auto; }
   .added { background:#e7f4e8; border-left:5px solid var(--green); padding:10px 12px; border-radius:6px; margin-bottom:10px; font-size:15px; }
-  .dupe { background:#fff4e0; border-left:5px solid #c77700; }
+  .dupe { background:#fff4e0; border-left-color:var(--amber); }
+  .warn { background:#fde4e7; border-left-color:var(--red); }
   .count { font-size:15px; color:var(--muted); margin:6px 2px 8px; }
   .count b { color:#1d1d1f; font-size:22px; }
   ul { list-style:none; margin:0; padding:0; background:var(--panel); border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.08); }
   li { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid #e4e7ee; }
   li:last-child { border-bottom:0; }
+  li.grp { background:#dee6f1; font-weight:700; color:var(--navy); padding:8px 12px; }
   .pkg { font-weight:700; font-size:17px; }
   .meta { font-size:12px; color:var(--muted); }
   .grow { flex:1; min-width:0; }
   .x { border:0; background:none; color:var(--red); font-size:22px; padding:4px 8px; }
-  .empty { padding:24px; text-align:center; color:var(--muted); background:var(--panel); border-radius:8px; }
+  .empty { padding:24px; text-align:center; color:var(--muted); background:var(--panel); border-radius:8px; display:block; }
   .help { font-size:13px; color:var(--muted); margin:14px 2px; line-height:1.45; }
   label { font-size:13px; color:var(--muted); display:block; margin:14px 2px 4px; }
-  input[type=email] { width:100%; padding:12px; font-size:16px; border:1px solid #c8cdd8; border-radius:6px; }
-  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #d8dce5; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  input[type=email], input[type=text] { width:100%; padding:12px; font-size:16px; border:1px solid #c8cdd8; border-radius:6px; }
+  .uldbox { background:var(--panel); border-radius:8px; padding:12px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .uldrow { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:6px; }
+  .set { border:0; border-radius:6px; padding:0 16px; font-size:15px; font-weight:600; background:var(--navy); color:#fff; }
+  .current { font-size:13px; color:var(--muted); margin-top:8px; }
+  .current b { font-size:20px; color:var(--navy); display:block; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chips button { border:1px solid var(--navy); background:#fff; color:var(--navy); border-radius:16px; padding:6px 10px; font-size:13px; }
+  .chips button.on { background:var(--navy); color:#fff; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #d8dce5; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; z-index:3; }
   .bar button, .clear { border:0; border-radius:6px; padding:13px 6px; font-size:15px; font-weight:600; color:#fff; }
-  .email { background:var(--green); } .share { background:var(--blue); } .copy { background:var(--navy); }
+  .bar .cam { grid-column:1 / span 3; background:var(--blue); font-size:17px; padding:15px; }
+  .email { background:var(--green); } .share { background:var(--navy); } .copy { background:#5d8aa8; }
   .clear { background:#fff; color:var(--red); border:1px solid var(--red); width:100%; margin-top:16px; }
-  .toast { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 14px; border-radius:6px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .topcam { margin-top:8px; width:100%; border:0; border-radius:6px; padding:11px; font-size:16px; font-weight:700; background:#fff; color:var(--navy); }
+  #camwrap .camsw { position:absolute; right:12px; top:44px; border:0; border-radius:20px; padding:8px 14px; font-size:14px; font-weight:600; background:rgba(255,255,255,.9); color:var(--navy); }
+  .toast { position:fixed; left:50%; bottom:150px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 14px; border-radius:6px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:6; }
   .toast.show { opacity:.95; }
+  #camwrap { position:fixed; inset:0; background:#000; z-index:5; display:none; flex-direction:column; }
+  #camwrap video { flex:1; width:100%; object-fit:cover; }
+  #camwrap .frame { position:absolute; left:15%; right:15%; top:28%; aspect-ratio:1; border:3px solid #fff; border-radius:12px; box-shadow:0 0 0 2000px rgba(0,0,0,.35); }
+  #camwrap .camtxt { position:absolute; top:12px; left:0; right:0; text-align:center; color:#fff; font-size:15px; }
+  #camwrap .camclose { position:absolute; left:12px; right:12px; bottom:calc(16px + env(safe-area-inset-bottom)); border:0; border-radius:8px; padding:15px; font-size:17px; font-weight:600; background:#fff; color:var(--navy); }
+  #howto { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:5; display:none; align-items:flex-end; }
+  #howto div { background:#fff; width:100%; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); border-radius:14px 14px 0 0; font-size:15px; line-height:1.5; }
+  #howto button { margin-top:12px; width:100%; border:0; border-radius:8px; padding:14px; background:var(--navy); color:#fff; font-size:16px; font-weight:600; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Arrivals scan list</h1>
-  <p>Scan each package label. The list builds up here on this phone.</p>
+  <h1 id="title">Arrivals scan list</h1>
+  <p id="sub">Scan each package label. The list builds up here on this phone.</p>
+  <div class="modes"><button id="mArr">Chalk lane</button><button id="mUld">Load ULDs</button><button id="mPal">Arrive ULDs</button></div>
+  <button class="topcam" id="cam2">&#128247; Scan</button>
 </header>
 <main>
   <div id="msg"></div>
-  <div class="count"><b id="n">0</b> package(s) scanned</div>
+  <div class="uldbox" id="uldbox" style="display:none">
+    <div style="font-weight:600">Which ULD are you loading?</div>
+    <div class="uldrow"><input id="uldin" type="text" list="uldlist" placeholder="e.g. MRMU 120044-1" autocapitalize="characters" autocomplete="off"><button class="set" id="uldset">Set ULD</button></div>
+    <datalist id="uldlist"></datalist>
+    <div class="chips" id="chips"></div>
+    <div class="current">Loading onto:<b id="cur">- none set -</b></div>
+  </div>
+  <div class="count"><b id="n">0</b> <span id="ntext">package(s) scanned</span></div>
   <ul id="list"></ul>
-  <p class="help">Scan the next label with the camera - it opens this page again and adds to the list. When the kit is all scanned, send the list with the buttons below. Mobility import it with <b>Arrivals &gt; Check QR arrival emails</b>.<br>Nothing is sent anywhere until you press a button: the list is only stored on this phone.</p>
+  <p class="help" id="help"></p>
   <label for="to">Email the list to (remembered on this phone)</label>
   <input id="to" type="email" placeholder="e.g. mobility.ops@mod.gov.uk" autocomplete="email">
-  <button class="clear" id="clear">Clear the list (after it has been sent)</button>
+  <button class="clear" id="clear">Clear this list (after it has been sent)</button>
 </main>
 <div class="bar">
+  <button class="cam" id="cam">&#128247; Scan</button>
   <button class="email" id="email">Email</button>
   <button class="share" id="share">Share</button>
   <button class="copy" id="copy">Copy</button>
 </div>
+<div id="camwrap"><video id="video" playsinline muted></video><div class="frame"></div><div class="camtxt" id="camtxt">Point at a label QR code</div><button class="camsw" id="camsw">&#8635; Switch camera</button><button class="camclose" id="camclose">Done scanning</button></div>
+<div id="howto"><div id="howtotxt"></div><button id="howtook">OK</button></div>
 <div class="toast" id="toast"></div>
 <script>
 (function () {
-  var KEY = "mobhub.scans.v1", TO = "mobhub.scans.to";
-  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
-  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
-  function toast(t) { var el = document.getElementById("toast"); el.textContent = t; el.classList.add("show"); setTimeout(function () { el.classList.remove("show"); }, 1800); }
+  var KEY = "mobhub.scans.v1", TO = "mobhub.scans.to", UKEY = "mobhub.uld.v1", MKEY = "mobhub.mode";
+  function lsGet(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+  function esc(t) { return String(t).replace(/[<>&"]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]; }); }
+  function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(function () { el.classList.remove("show"); }, 1800); }
   function stamp(d) { var p = function (x) { return (x < 10 ? "0" : "") + x; }; return p(d.getDate()) + "/" + p(d.getMonth() + 1) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); }
-  var items = load();
-  // a scan arrives as  ...scan.html#MOBARR%20<OP/EX ID>%20<package>
-  var raw = "";
-  try { raw = decodeURIComponent((location.hash || "").replace(/^#/, "")).trim(); } catch (e) { raw = ""; }
-  var m = raw.match(/^MOBARR\s+(\d+)\s+(\S+)$/);
-  var msg = document.getElementById("msg");
-  if (m) {
-    var code = "MOBARR " + m[1] + " " + m[2];
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {} }
+
+  var items = lsGet(KEY, []);                     // arrivals: [{code, pkg, op, at}]
+  var U = lsGet(UKEY, { op: "", cur: "", ulds: [], items: [] }); // ULD loading
+  var P = lsGet("mh_pal", []);                    // pallet cards: [{op, u, leg, at}]
+  var mode = lsGet(MKEY, "arr");
+  function saveAll() { lsSet(KEY, items); lsSet(UKEY, U); lsSet(MKEY, mode); lsSet("mh_pal", P); }
+
+  // ---------- handle one scanned text (from the phone camera link or the in-page camera) ----------
+  function handle(raw) {
+    raw = (raw || "").trim();
+    var h = raw.indexOf("#") >= 0 ? raw.slice(raw.indexOf("#") + 1) : raw;
+    try { h = decodeURIComponent(h.replace(/\+/g, " ")); } catch (e) {}
+    h = h.trim();
+    var mU = h.match(/^MOBULD\s+(\d+)$/), mA = h.match(/^MOBARR\s+(\d+)\s+(\S+)$/), mP = h.match(/^MOBPAL\s+(\d+)\s+(\d+)\s+([DR])$/);
+    if (mP) {
+      mode = "pal";
+      var k = mP[1] + " " + mP[2] + " " + mP[3];
+      var had = P.some(function (p) { return p.op + " " + p.u + " " + p.leg === k; });
+      if (!had) { P.push({ op: mP[1], u: mP[2], leg: mP[3], at: stamp(new Date()) }); buzz(); }
+      show((had ? "Already on the list: ULD <b>#" : "Arrived: ULD <b>#") + esc(mP[2]) + "</b> (" + (mP[3] === "R" ? "recovery" : "deployment") + ") - everything on it", had ? "dupe" : "");
+      saveAll(); render(); return true;
+    }
+    if (mU) {
+      mode = "uld"; if (U.op && U.op !== mU[1] && U.items.length) { show('Started ULD loading for OP/EX ' + mU[1] + ' - the list still holds OP/EX ' + U.op + ' items. Send or clear them first.', "warn"); }
+      U.op = mU[1]; saveAll(); render(); show("ULD loading mode for OP/EX " + esc(mU[1]) + ". Type or pick the ULD, then scan the boxes.", ""); return true;
+    }
+    if (!mA) { show("That QR code is not a Mobility Hub label.", "warn"); return false; }
+    if (mode === "pal") { show("That is a package label. In <b>Arrive ULDs</b> scan the QR on the <b>pallet card</b> (or switch to Chalk lane).", "warn"); return false; }
+    var op = mA[1], pkg = mA[2];
+    if (mode === "uld") {
+      if (!U.cur) { show("Set the ULD first, then scan <b>" + esc(pkg) + "</b> again.", "warn"); return false; }
+      if (!U.op) U.op = op;
+      if (op !== U.op) { show("<b>" + esc(pkg) + "</b> belongs to OP/EX " + esc(op) + ", not " + esc(U.op) + " - not added.", "warn"); return false; }
+      var ex = U.items.filter(function (i) { return i.pkg === pkg; })[0];
+      if (ex && ex.uld === U.cur) { show("Already on " + esc(U.cur) + ": <b>" + esc(pkg) + "</b>", "dupe"); return true; }
+      if (ex) { ex.uld = U.cur; ex.at = stamp(new Date()); show("Moved <b>" + esc(pkg) + "</b> to " + esc(U.cur), "dupe"); }
+      else { U.items.push({ uld: U.cur, pkg: pkg, op: op, at: stamp(new Date()) }); show("Loaded <b>" + esc(pkg) + "</b> on " + esc(U.cur), ""); }
+      buzz(); saveAll(); render(); return true;
+    }
+    var code = "MOBARR " + op + " " + pkg;
     var dup = items.some(function (i) { return i.code === code; });
-    if (!dup) { items.push({ code: code, pkg: m[2], op: m[1], at: stamp(new Date()) }); save(items); }
-    msg.innerHTML = '<div class="added' + (dup ? ' dupe' : '') + '">' + (dup ? 'Already on the list: <b>' : 'Added: <b>') + m[2].replace(/[<>&]/g, "") + "</b></div>";
-    if (history.replaceState) history.replaceState(null, "", location.pathname + location.search); // so a refresh does not add it again
+    if (!dup) { items.push({ code: code, pkg: pkg, op: op, at: stamp(new Date()) }); buzz(); }
+    show((dup ? "Already on the list: <b>" : "Added: <b>") + esc(pkg) + "</b>", dup ? "dupe" : "");
+    saveAll(); render(); return true;
   }
-  var to = document.getElementById("to");
-  try { to.value = localStorage.getItem(TO) || ""; } catch (e) {}
-  to.addEventListener("change", function () { try { localStorage.setItem(TO, to.value.trim()); } catch (e) {} });
+  function show(html, cls) { $("msg").innerHTML = '<div class="added ' + (cls || "") + '">' + html + "</div>"; }
+
+  // scan arriving through the URL (phone camera app)
+  function fromHash() {
+    if (location.hash && location.hash.length > 1) {
+      handle(location.hash);
+      if (history.replaceState) history.replaceState(null, "", location.pathname + location.search);
+    }
+  }
+  fromHash();
+  window.addEventListener("hashchange", fromHash);   // page already open: the scan only changes the #...
+
+  // ---------- ULD controls ----------
+  function setUld(v) {
+    v = (v || "").trim().toUpperCase().replace(/\s+/g, " ");
+    if (!v) return toast("Type the ULD number");
+    U.cur = v; if (U.ulds.indexOf(v) < 0) U.ulds.push(v); $("uldin").value = ""; saveAll(); render(); toast("Loading onto " + v);
+  }
+  $("uldset").onclick = function () { setUld($("uldin").value); };
+  $("uldin").addEventListener("keydown", function (e) { if (e.key === "Enter") setUld($("uldin").value); });
+  $("mArr").onclick = function () { mode = "arr"; saveAll(); $("msg").innerHTML = ""; render(); };
+  $("mUld").onclick = function () { mode = "uld"; saveAll(); $("msg").innerHTML = ""; render(); };
+  $("mPal").onclick = function () { mode = "pal"; saveAll(); $("msg").innerHTML = ""; render(); };
+
+  // ---------- list ----------
   function render() {
-    var ul = document.getElementById("list"); ul.innerHTML = "";
-    document.getElementById("n").textContent = items.length;
-    if (!items.length) { ul.outerHTML = '<ul id="list"><li class="empty" style="display:block">No packages scanned yet.</li></ul>'; return; }
-    items.slice().reverse().forEach(function (it) {
-      var li = document.createElement("li");
-      li.innerHTML = '<div class="grow"><div class="pkg"></div><div class="meta"></div></div><button class="x" aria-label="Remove">&times;</button>';
-      li.querySelector(".pkg").textContent = it.pkg;
-      li.querySelector(".meta").textContent = "OP/EX " + it.op + "  -  scanned " + it.at;
-      li.querySelector(".x").onclick = function () { items = items.filter(function (i) { return i.code !== it.code; }); save(items); render(); };
-      ul.appendChild(li);
-    });
+    $("mArr").className = mode === "arr" ? "on" : ""; $("mUld").className = mode === "uld" ? "on" : ""; $("mPal").className = mode === "pal" ? "on" : "";
+    $("title").textContent = mode === "uld" ? "ULD loading list" : mode === "pal" ? "Arrive ULDs (pallet cards)" : "Chalk lane arrivals";
+    $("sub").textContent = mode === "uld" ? "Pick the ULD, then scan each box going on it." : mode === "pal" ? "Scan the QR on each pallet card - everything on that ULD is arrived." : "Scan each package label. The list builds up here on this phone.";
+    $("uldbox").style.display = mode === "uld" ? "block" : "none";
+    $("cur").textContent = U.cur || "- none set -";
+    $("uldlist").innerHTML = U.ulds.map(function (u) { return '<option value="' + esc(u) + '">'; }).join("");
+    $("chips").innerHTML = U.ulds.map(function (u) { return '<button data-u="' + esc(u) + '" class="' + (u === U.cur ? "on" : "") + '">' + esc(u) + " (" + U.items.filter(function (i) { return i.uld === u; }).length + ")</button>"; }).join("");
+    Array.prototype.forEach.call($("chips").querySelectorAll("button"), function (b) { b.onclick = function () { U.cur = b.getAttribute("data-u"); saveAll(); render(); }; });
+    $("email").textContent = mode === "uld" ? "Complete - email" : "Email";
+    $("help").innerHTML = mode === "pal"
+      ? "Press <b>Scan</b> and point at the QR on each <b>pallet card</b>. Each ULD only needs scanning once. When they are all done press <b>Email</b>. Mobility import it with <b>ULD build &gt; Import pallet card scans</b>.<br>Nothing leaves this phone until you press a button."
+      : mode === "uld"
+      ? "Press <b>Scan next label</b> (or use the phone camera) for each box. Change ULD with the buttons above. When every ULD is loaded press <b>Complete - email</b>. Mobility import it with <b>ULD build &gt; Import ULD scans</b>.<br>Nothing leaves this phone until you press a button."
+      : "Press <b>Scan next label</b> (or use the phone camera) for each package. When the kit is all scanned, send the list. Mobility import it with <b>Chalk lane &gt; Check QR arrival emails</b>.<br>Nothing leaves this phone until you press a button.";
+    var ul = $("list"); ul.innerHTML = "";
+    if (mode === "pal") {
+      $("n").textContent = P.length; $("ntext").textContent = "ULD(s) arrived";
+      if (!P.length) { ul.innerHTML = '<li class="empty">No pallet cards scanned yet.</li>'; return; }
+      P.slice().reverse().forEach(function (p) { ul.appendChild(row("ULD #" + p.u, "OP/EX " + p.op + "  -  " + (p.leg === "R" ? "recovery" : "deployment") + "  -  scanned " + p.at, function () { P = P.filter(function (x) { return x !== p; }); saveAll(); render(); })); });
+      return;
+    }
+    if (mode === "uld") {
+      $("n").textContent = U.items.length; $("ntext").textContent = "box(es) on " + U.ulds.length + " ULD(s)" + (U.op ? "  -  OP/EX " + U.op : "");
+      if (!U.items.length) { ul.innerHTML = '<li class="empty">Nothing loaded yet.</li>'; return; }
+      U.ulds.forEach(function (u) {
+        var its = U.items.filter(function (i) { return i.uld === u; }); if (!its.length) return;
+        var g = document.createElement("li"); g.className = "grp"; g.textContent = u + "  (" + its.length + ")"; ul.appendChild(g);
+        its.slice().reverse().forEach(function (it) { ul.appendChild(row(it.pkg, "scanned " + it.at, function () { U.items = U.items.filter(function (i) { return i !== it; }); saveAll(); render(); })); });
+      });
+    } else {
+      $("n").textContent = items.length; $("ntext").textContent = "package(s) scanned";
+      if (!items.length) { ul.innerHTML = '<li class="empty">No packages scanned yet.</li>'; return; }
+      items.slice().reverse().forEach(function (it) { ul.appendChild(row(it.pkg, "OP/EX " + it.op + "  -  scanned " + it.at, function () { items = items.filter(function (i) { return i.code !== it.code; }); saveAll(); render(); })); });
+    }
   }
-  function text() { return "Mobility Hub arrivals - " + items.length + " package(s)\n" + items.map(function (i) { return i.code; }).join("\n"); }
-  document.getElementById("email").onclick = function () {
-    if (!items.length) return toast("Nothing scanned yet");
-    var addr = to.value.trim(); try { localStorage.setItem(TO, addr); } catch (e) {}
-    location.href = "mailto:" + encodeURIComponent(addr).replace(/%40/g, "@") + "?subject=" + encodeURIComponent("MOBARR LIST " + items.length + " packages") + "&body=" + encodeURIComponent(text());
+  function row(title, meta, del) {
+    var li = document.createElement("li");
+    li.innerHTML = '<div class="grow"><div class="pkg"></div><div class="meta"></div></div><button class="x" aria-label="Remove">&times;</button>';
+    li.querySelector(".pkg").textContent = title; li.querySelector(".meta").textContent = meta; li.querySelector(".x").onclick = del; return li;
+  }
+
+  // ---------- send ----------
+  var to = $("to");
+  to.value = lsGet(TO, "") || "";
+  to.addEventListener("change", function () { lsSet(TO, to.value.trim()); });
+  function count() { return mode === "uld" ? U.items.length : mode === "pal" ? P.length : items.length; }
+  function text() {
+    if (mode === "pal") return "Mobility Hub ULD arrivals - " + P.length + " ULD(s)\n" + P.map(function (p) { return "MOBPAL " + p.op + " " + p.u + " " + p.leg; }).join("\n");
+    if (mode === "uld") return "Mobility Hub ULD loading - " + U.items.length + " box(es)\n" + U.items.map(function (i) { return "MOBULD|" + i.op + "|" + i.uld + "|" + i.pkg; }).join("\n");
+    return "Mobility Hub arrivals - " + items.length + " package(s)\n" + items.map(function (i) { return i.code; }).join("\n");
+  }
+  function subject() { return mode === "pal" ? "MOBPAL LIST " + P.length + " ULDs" : mode === "uld" ? "MOBULD LIST " + U.items.length + " packages" : "MOBARR LIST " + items.length + " packages"; }
+  $("email").onclick = function () {
+    if (!count()) return toast("Nothing scanned yet");
+    var addr = to.value.trim(); lsSet(TO, addr);
+    location.href = "mailto:" + encodeURIComponent(addr).replace(/%40/g, "@") + "?subject=" + encodeURIComponent(subject()) + "&body=" + encodeURIComponent(text());
   };
-  document.getElementById("share").onclick = function () {
-    if (!items.length) return toast("Nothing scanned yet");
-    if (navigator.share) navigator.share({ title: "MOBARR LIST", text: text() }).catch(function () {});
-    else document.getElementById("copy").onclick();
+  $("share").onclick = function () {
+    if (!count()) return toast("Nothing scanned yet");
+    if (navigator.share) navigator.share({ title: subject(), text: text() }).catch(function () {}); else $("copy").onclick();
   };
-  document.getElementById("copy").onclick = function () {
-    if (!items.length) return toast("Nothing scanned yet");
+  $("copy").onclick = function () {
+    if (!count()) return toast("Nothing scanned yet");
     var t = text();
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("List copied - paste it into an email"); }, function () { prompt("Copy this list:", t); });
     else prompt("Copy this list:", t);
   };
-  document.getElementById("clear").onclick = function () {
-    if (!items.length) return;
-    if (confirm("Clear all " + items.length + " scanned package(s)? Only do this once the list has been sent.")) { items = []; save(items); render(); msg.innerHTML = ""; }
+  $("clear").onclick = function () {
+    if (!count()) return;
+    if (!confirm("Clear all " + count() + " item(s) on this " + (mode === "uld" ? "ULD loading" : mode === "pal" ? "pallet card" : "arrivals") + " list? Only do this once it has been sent.")) return;
+    if (mode === "uld") U = { op: U.op, cur: "", ulds: [], items: [] }; else if (mode === "pal") P = []; else items = [];
+    saveAll(); render(); $("msg").innerHTML = "";
   };
+
+  // ---------- camera ----------
+  var stream = null, timer = null, detector = null, last = "", lastAt = 0;
+  function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+  function howto() {
+    $("howtotxt").innerHTML = isIOS()
+      ? "<b>Scan the next label with the iPhone camera</b><br>1. Swipe up (or press Home) and open <b>Camera</b> - or the <b>Code Scanner</b> in Control Centre.<br>2. Point at the label QR and tap the link.<br>3. This page opens again and adds it. Your list is kept."
+      : "<b>Scan the next label with the phone camera</b><br>Open the camera (or Google Lens), point at the label QR and tap the link. This page opens again and adds it - your list is kept.";
+    $("howto").style.display = "flex";
+  }
+  $("howtook").onclick = function () { $("howto").style.display = "none"; };
+  var camId = lsGet("mh_cam", ""), cams = [];
+  function startCam() {
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return howto();
+    try { detector = detector || new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { return howto(); }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (timer) { clearInterval(timer); timer = null; }
+    var vc = camId ? { deviceId: { exact: camId } } : { facingMode: "environment" };
+    navigator.mediaDevices.getUserMedia({ video: vc, audio: false }).catch(function () { camId = ""; lsSet("mh_cam", ""); return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); }).then(function (s) {
+      try { navigator.mediaDevices.enumerateDevices().then(function (d) { cams = d.filter(function (x) { return x.kind === "videoinput"; }); $("camsw").style.display = cams.length > 1 ? "block" : "none"; }); } catch (e) {}
+      stream = s; var v = $("video"); v.srcObject = s; v.play(); $("camwrap").style.display = "flex";
+      $("camtxt").textContent = mode === "uld" ? ("Loading onto " + (U.cur || "- set a ULD first -")) : mode === "pal" ? "Point at the pallet card QR" : "Point at a label QR code";
+      timer = setInterval(function () {
+        if (v.readyState < 2) return;
+        detector.detect(v).then(function (codes) {
+          if (!codes.length) return;
+          var t = codes[0].rawValue, now = Date.now();
+          if (t === last && now - lastAt < 3000) return;  // same label still in view
+          last = t; lastAt = now;
+          var ok = handle(t);
+          $("camtxt").textContent = (ok ? "✓ " : "✗ ") + ($("msg").textContent || "");
+        }).catch(function () {});
+      }, 350);
+    }).catch(function () { howto(); });
+  }
+  $("cam").onclick = startCam; $("cam2").onclick = startCam;
+  $("camsw").onclick = function () {
+    if (cams.length < 2) return;
+    var cur = stream && stream.getVideoTracks()[0] ? stream.getVideoTracks()[0].getSettings().deviceId : camId;
+    var i = cams.map(function (c) { return c.deviceId; }).indexOf(cur);
+    camId = cams[(i + 1) % cams.length].deviceId; lsSet("mh_cam", camId); toast("Switching camera"); startCam();
+  };
+  function stopCam() { if (timer) clearInterval(timer); timer = null; if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; $("camwrap").style.display = "none"; }
+  $("camclose").onclick = stopCam;
+
   render();
 })();
 </script>
