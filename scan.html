@@ -48,6 +48,12 @@
   .clear { background:#fff; color:var(--red); border:1px solid var(--red); width:100%; margin-top:16px; }
   .topcam { margin-top:8px; width:100%; border:0; border-radius:6px; padding:11px; font-size:16px; font-weight:700; background:#fff; color:var(--navy); }
   #camwrap .camsw { position:absolute; right:12px; top:44px; border:0; border-radius:20px; padding:8px 14px; font-size:14px; font-weight:600; background:rgba(255,255,255,.9); color:var(--navy); }
+  select { width:100%; padding:12px; font-size:16px; border:1px solid #c8cdd8; border-radius:6px; background:#fff; }
+  .fin { width:100%; padding:12px; background:var(--green); }
+  .cwbox { background:#fff8e6; border:1px solid var(--amber); border-radius:8px; padding:12px; margin-top:10px; }
+  input[type=number] { width:100%; padding:12px; font-size:16px; border:1px solid #c8cdd8; border-radius:6px; }
+  .link { border:0; background:none; color:var(--blue); font-size:14px; padding:8px 0 0; text-decoration:underline; }
+  .chips button.done { border-color:var(--green); color:var(--green); }
   .toast { position:fixed; left:50%; bottom:150px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 14px; border-radius:6px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:6; }
   .toast.show { opacity:.95; }
   #camwrap { position:fixed; inset:0; background:#000; z-index:5; display:none; flex-direction:column; }
@@ -70,11 +76,21 @@
 <main>
   <div id="msg"></div>
   <div class="uldbox" id="uldbox" style="display:none">
-    <div style="font-weight:600">Which ULD are you loading?</div>
-    <div class="uldrow"><input id="uldin" type="text" list="uldlist" placeholder="e.g. MRMU 120044-1" autocapitalize="characters" autocomplete="off"><button class="set" id="uldset">Set ULD</button></div>
-    <datalist id="uldlist"></datalist>
-    <div class="chips" id="chips"></div>
     <div class="current">Loading onto:<b id="cur">- none set -</b></div>
+    <div id="curact" style="display:none; margin-top:8px"><button class="set fin" id="finish">&#10003; This ULD is built - weigh it</button></div>
+    <div class="cwbox" id="cwbox" style="display:none">
+      <div style="font-weight:600">Checked weight (CW) of <span id="cwuld"></span></div>
+      <div class="uldrow"><input id="cwin" type="number" inputmode="decimal" placeholder="kg - from the scales"><button class="set" id="cwok">Save</button></div>
+      <button class="link" id="cwskip">Weigh it later</button>
+    </div>
+    <div class="help" style="margin:10px 0 4px"><b>Pick the ULD:</b> scan its QR on the <b>ULD loading sheet</b>, or tap one below.</div>
+    <div class="chips" id="chips"></div>
+    <details id="addnew" style="margin-top:10px"><summary style="font-weight:600; color:var(--navy)">ULD not on the sheet? Add it</summary>
+      <label for="newtype">ULD type</label><select id="newtype"><option value="">- pick the type -</option><option>20ft Standard Container</option><option>20ft High Cube Container</option><option>20ft Hard Top Container</option><option>20ft Flat Rack Container</option><option>20ft Refrigerated Container</option><option>20ft Side Door Container</option><option>40ft Standard Container</option><option>40ft High Cube Container</option><option>40ft Flat Rack Container</option><option>40ft Collapsible Flat Rack Container</option><option>40ft Refrigerated Container</option><option>40ft High Cube Refrigerated Container</option><option>40ft Side Door Container</option><option>463L</option><option>463L Double Pallet Configuration</option><option>463L ISU 90</option><option>PAG</option><option>P1P</option><option>PMC</option><option>AKE</option><option>AKN</option><option>ALF</option><option>ALP</option></select>
+      <label for="uldin">ULD number</label>
+      <div class="uldrow"><input id="uldin" type="text" list="uldlist" placeholder="e.g. MRMU 120044-1" autocapitalize="characters" autocomplete="off"><button class="set" id="uldset">Add ULD</button></div>
+      <datalist id="uldlist"></datalist>
+    </details>
   </div>
   <div class="count"><b id="n">0</b> <span id="ntext">package(s) scanned</span></div>
   <ul id="list"></ul>
@@ -105,6 +121,7 @@
 
   var items = lsGet(KEY, []);                     // arrivals: [{code, pkg, op, at}]
   var U = lsGet(UKEY, { op: "", cur: "", ulds: [], items: [] }); // ULD loading
+  U.cw = U.cw || {}; U.newt = U.newt || {}; U.ids = U.ids || {};      // checked weights, new ULD types, sheet ULD ids
   var P = lsGet("mh_pal", []);                    // pallet cards: [{op, u, leg, at}]
   var mode = lsGet(MKEY, "arr");
   function saveAll() { lsSet(KEY, items); lsSet(UKEY, U); lsSet(MKEY, mode); lsSet("mh_pal", P); }
@@ -115,6 +132,13 @@
     var h = raw.indexOf("#") >= 0 ? raw.slice(raw.indexOf("#") + 1) : raw;
     try { h = decodeURIComponent(h.replace(/\+/g, " ")); } catch (e) {}
     h = h.trim();
+    var mS = h.match(/^MOBSET\s+(\d+)\s+(\d+)\s+(.+)$/);
+    if (mS) {
+      mode = "uld"; var num = mS[3].trim().toUpperCase().replace(/\s+/g, " ");
+      if (U.op && U.op !== mS[1] && U.items.length) { show("That ULD is on OP/EX " + esc(mS[1]) + " but this list holds OP/EX " + esc(U.op) + " - send or clear it first.", "warn"); return false; }
+      U.op = mS[1]; U.ids[num] = mS[2]; U.cur = num; if (U.ulds.indexOf(num) < 0) U.ulds.push(num); $("cwbox").style.display = "none";
+      buzz(); saveAll(); render(); show("Loading onto <b>" + esc(num) + "</b>. Now scan each box going on it.", ""); return true;
+    }
     var mU = h.match(/^MOBULD\s+(\d+)$/), mA = h.match(/^MOBARR\s+(\d+)\s+(\S+)$/), mP = h.match(/^MOBPAL\s+(\d+)\s+(\d+)\s+([DR])$/);
     if (mP) {
       mode = "pal";
@@ -163,10 +187,26 @@
   function setUld(v) {
     v = (v || "").trim().toUpperCase().replace(/\s+/g, " ");
     if (!v) return toast("Type the ULD number");
+    var t = $("newtype").value;
+    if (!U.ids[v] && U.ulds.indexOf(v) < 0) { if (!t) return toast("Pick the ULD type first"); U.newt[v] = t; }
+    $("addnew").open = false; $("cwbox").style.display = "none";
     U.cur = v; if (U.ulds.indexOf(v) < 0) U.ulds.push(v); $("uldin").value = ""; saveAll(); render(); toast("Loading onto " + v);
   }
   $("uldset").onclick = function () { setUld($("uldin").value); };
   $("uldin").addEventListener("keydown", function (e) { if (e.key === "Enter") setUld($("uldin").value); });
+  $("finish").onclick = function () {
+    if (!U.cur) return;
+    var n = U.items.filter(function (i) { return i.uld === U.cur; }).length;
+    if (!n && !confirm("Nothing has been scanned onto " + U.cur + ". Finish it anyway?")) return;
+    $("cwuld").textContent = U.cur; $("cwin").value = U.cw[U.cur] || ""; $("cwbox").style.display = "block"; $("cwin").focus();
+  };
+  function nextUld(msg) { var done = U.cur; U.cur = ""; $("cwbox").style.display = "none"; saveAll(); render(); show(msg.replace("{u}", esc(done)) + " Scan the next ULD on the loading sheet (or tap / add one).", ""); }
+  $("cwok").onclick = function () {
+    var v = parseFloat(($("cwin").value || "").replace(",", "."));
+    if (!(v > 0)) return toast("Type the weight in kg");
+    U.cw[U.cur] = Math.round(v); nextUld("<b>{u}</b> finished - CW " + Math.round(v) + " kg.");
+  };
+  $("cwskip").onclick = function () { nextUld("<b>{u}</b> finished - CW still to add (tap it later and finish again)."); };
   $("mArr").onclick = function () { mode = "arr"; saveAll(); $("msg").innerHTML = ""; render(); };
   $("mUld").onclick = function () { mode = "uld"; saveAll(); $("msg").innerHTML = ""; render(); };
   $("mPal").onclick = function () { mode = "pal"; saveAll(); $("msg").innerHTML = ""; render(); };
@@ -179,13 +219,14 @@
     $("uldbox").style.display = mode === "uld" ? "block" : "none";
     $("cur").textContent = U.cur || "- none set -";
     $("uldlist").innerHTML = U.ulds.map(function (u) { return '<option value="' + esc(u) + '">'; }).join("");
-    $("chips").innerHTML = U.ulds.map(function (u) { return '<button data-u="' + esc(u) + '" class="' + (u === U.cur ? "on" : "") + '">' + esc(u) + " (" + U.items.filter(function (i) { return i.uld === u; }).length + ")</button>"; }).join("");
-    Array.prototype.forEach.call($("chips").querySelectorAll("button"), function (b) { b.onclick = function () { U.cur = b.getAttribute("data-u"); saveAll(); render(); }; });
+    $("chips").innerHTML = U.ulds.map(function (u) { return '<button data-u="' + esc(u) + '" class="' + (u === U.cur ? "on" : (U.cw[u] ? "done" : "")) + '">' + esc(u) + " (" + U.items.filter(function (i) { return i.uld === u; }).length + (U.cw[u] ? ", CW " + U.cw[u] + " kg" : "") + ")</button>"; }).join("");
+    $("curact").style.display = U.cur ? "block" : "none";
+    Array.prototype.forEach.call($("chips").querySelectorAll("button"), function (b) { b.onclick = function () { U.cur = b.getAttribute("data-u"); $("cwbox").style.display = "none"; saveAll(); render(); }; });
     $("email").textContent = mode === "uld" ? "Complete - email" : "Email";
     $("help").innerHTML = mode === "pal"
       ? "Press <b>Scan</b> and point at the QR on each <b>pallet card</b>. Each ULD only needs scanning once. When they are all done press <b>Email</b>. Mobility import it with <b>ULD build &gt; Import pallet card scans</b>.<br>Nothing leaves this phone until you press a button."
       : mode === "uld"
-      ? "Press <b>Scan next label</b> (or use the phone camera) for each box. Change ULD with the buttons above. When every ULD is loaded press <b>Complete - email</b>. Mobility import it with <b>ULD build &gt; Import ULD scans</b>.<br>Nothing leaves this phone until you press a button."
+      ? "1. Scan the ULD's QR on the <b>ULD loading sheet</b> (or add it). 2. Press <b>Scan</b> and scan each box going on it. 3. Press <b>This ULD is built</b>, weigh it and type the CW. 4. Scan the next ULD. You can send everything at the end with <b>Complete - email</b>. Mobility import it with <b>ULD build &gt; Import ULD scans</b> (new ULDs are added, CWs saved).<br>Nothing leaves this phone until you press a button."
       : "Press <b>Scan next label</b> (or use the phone camera) for each package. When the kit is all scanned, send the list. Mobility import it with <b>Chalk lane &gt; Check QR arrival emails</b>.<br>Nothing leaves this phone until you press a button.";
     var ul = $("list"); ul.innerHTML = "";
     if (mode === "pal") {
@@ -221,7 +262,10 @@
   function count() { return mode === "uld" ? U.items.length : mode === "pal" ? P.length : items.length; }
   function text() {
     if (mode === "pal") return "Mobility Hub ULD arrivals - " + P.length + " ULD(s)\n" + P.map(function (p) { return "MOBPAL " + p.op + " " + p.u + " " + p.leg; }).join("\n");
-    if (mode === "uld") return "Mobility Hub ULD loading - " + U.items.length + " box(es)\n" + U.items.map(function (i) { return "MOBULD|" + i.op + "|" + i.uld + "|" + i.pkg; }).join("\n");
+    if (mode === "uld") return "Mobility Hub ULD loading - " + U.items.length + " box(es) on " + U.ulds.length + " ULD(s)\n" +
+      U.ulds.filter(function (u) { return U.newt[u]; }).map(function (u) { return "MOBNEW|" + U.op + "|" + u + "|" + U.newt[u]; }).concat(
+      U.items.map(function (i) { return "MOBULD|" + i.op + "|" + i.uld + "|" + i.pkg; }),
+      U.ulds.filter(function (u) { return U.cw[u]; }).map(function (u) { return "MOBCW|" + U.op + "|" + u + "|" + U.cw[u]; })).join("\n");
     return "Mobility Hub arrivals - " + items.length + " package(s)\n" + items.map(function (i) { return i.code; }).join("\n");
   }
   function subject() { return mode === "pal" ? "MOBPAL LIST " + P.length + " ULDs" : mode === "uld" ? "MOBULD LIST " + U.items.length + " packages" : "MOBARR LIST " + items.length + " packages"; }
@@ -243,7 +287,7 @@
   $("clear").onclick = function () {
     if (!count()) return;
     if (!confirm("Clear all " + count() + " item(s) on this " + (mode === "uld" ? "ULD loading" : mode === "pal" ? "pallet card" : "arrivals") + " list? Only do this once it has been sent.")) return;
-    if (mode === "uld") U = { op: U.op, cur: "", ulds: [], items: [] }; else if (mode === "pal") P = []; else items = [];
+    if (mode === "uld") U = { op: U.op, cur: "", ulds: [], items: [], cw: {}, newt: {}, ids: {} }; else if (mode === "pal") P = []; else items = [];
     saveAll(); render(); $("msg").innerHTML = "";
   };
 
